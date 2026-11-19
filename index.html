@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFF8ED">
+<title>My Little Atlas</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--bg:#FFF8ED;--card:#fff;--text:#34413B;--muted:#7a857f;--aqua:#BFE5E5;--sky:#A9D8E8;--sage:#A8BC8A;--peach:#F8D8BD;--butter:#F5E5A6;--coral:#E99B83;--green:#6f8a4e;--shadow:0 6px 18px rgba(80,70,50,.10);--stage:#f0e6d3}
+@media (prefers-color-scheme:dark){:root{--bg:#1f2622;--card:#2a332e;--text:#f1ece0;--muted:#a3ada6;--aqua:#3d5a5a;--sky:#3b5967;--sage:#55683f;--peach:#6b5442;--butter:#6b6030;--coral:#c9806a;--green:#a8bc8a;--shadow:0 6px 18px rgba(0,0,0,.35);--stage:#161b18}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--stage);color:var(--text);font-family:'Nunito','Quicksand',system-ui,sans-serif;font-size:16px}
+h1,h2,h3,p{margin:0}
+.app{position:relative;max-width:430px;margin:0 auto;min-height:100vh;background:var(--bg);padding-bottom:100px;overflow:hidden}
+@media(min-width:500px){.app{margin:16px auto;min-height:calc(100vh - 32px);border-radius:32px;box-shadow:0 20px 60px rgba(0,0,0,.18)}}
+.hide{display:none!important}
+.page{display:none}.page.on{display:block}
+.hero{position:relative;height:210px}.hero svg{display:block;width:100%;height:100%}
+.hero h1{position:absolute;top:calc(20px + env(safe-area-inset-top,0px));left:0;right:0;text-align:center;font-size:22px;font-weight:800}
+.out{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:14px;border:0;border-radius:999px;background:rgba(255,255,255,.75);color:#34413B;font:inherit;font-weight:700;font-size:12px;padding:6px 12px;cursor:pointer}
+.sheetc{margin-top:-26px;position:relative;background:var(--bg);border-radius:28px 28px 0 0;padding:20px 18px 8px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{border-radius:20px;padding:14px 16px;display:flex;align-items:center;gap:12px;color:#34413B}
+.stat b{font-size:26px;line-height:1;font-weight:800}.stat span{font-size:14px;font-weight:600}.stat i{font-style:normal;font-size:26px}
+.sec{margin:22px 0 10px}.sec h2{font-size:18px;font-weight:800}
+.row{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}
+.mem{flex:0 0 150px;background:var(--card);border-radius:22px;box-shadow:var(--shadow);overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:center;font-size:38px;height:100px;color:#34413B}
+.mem .t{padding:10px 12px 12px}.t b{display:block;font-size:15px}.t small,.card small{color:var(--muted);font-size:13px}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.quick button{border:0;border-radius:20px;padding:14px 6px;font:inherit;font-weight:700;font-size:14px;color:#34413B;cursor:pointer;display:flex;flex-direction:column;gap:4px;align-items:center}
+.quick button span{font-size:24px}
+.head{padding:calc(26px + env(safe-area-inset-top,0px)) 18px 6px}.head h1{font-size:28px;font-weight:800}.head p{color:var(--muted);margin-top:2px}
+.list{padding:12px 18px;display:grid;gap:12px}
+.card{display:flex;gap:14px;background:var(--card);border-radius:24px;padding:12px;box-shadow:var(--shadow);align-items:center;cursor:pointer;border:0;width:100%;text-align:left;font:inherit;color:inherit}
+.card .ph{flex:0 0 74px;height:74px;border-radius:18px;font-size:30px}
+.card b{font-size:16px;display:block}.stars{color:#e0a532;font-size:14px;letter-spacing:1px;margin-top:3px}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;margin-top:5px;background:var(--butter);color:#34413B}
+.empty{text-align:center;padding:36px 24px;color:var(--muted)}.empty div{font-size:46px;margin-bottom:8px}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(430px,100%);background:var(--card);border-radius:26px 26px 0 0;box-shadow:0 -6px 22px rgba(0,0,0,.10);display:grid;grid-template-columns:1fr 1fr 1fr 74px 1fr 1fr 1fr;align-items:center;padding:8px 6px calc(10px + env(safe-area-inset-bottom,0px));z-index:5}
+nav button{background:none;border:0;font:inherit;color:var(--muted);font-weight:700;font-size:10px;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 0}
+nav button span{font-size:22px;filter:grayscale(1);opacity:.7}
+nav button.on{color:var(--green)}nav button.on span{filter:none;opacity:1}
+nav .plus{width:58px;height:58px;border-radius:50%;background:var(--green);color:#fff;font-size:30px;margin:-28px auto 0;box-shadow:0 8px 18px rgba(111,138,78,.5);justify-content:center;padding:0;border:4px solid var(--bg)}
+.scrim{position:fixed;inset:0;background:rgba(30,35,30,.45);z-index:8}
+.sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(430px,100%);max-height:88vh;overflow-y:auto;background:var(--bg);border-radius:28px 28px 0 0;padding:20px 18px calc(24px + env(safe-area-inset-bottom,0px));z-index:9}
+.sheet h3{font-size:20px;font-weight:800;margin-bottom:12px}
+label{display:block;font-weight:700;font-size:14px;margin:12px 0 4px}
+input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--text);background:var(--card);border:2px solid transparent;border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--sage)}
+textarea{min-height:90px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{border:0;border-radius:999px;padding:13px 22px;font:inherit;font-weight:800;font-size:15px;cursor:pointer;background:var(--green);color:#fff;width:100%;margin-top:18px}
+.btn.s{background:var(--butter);color:#34413B;margin-top:10px}.btn.d{background:none;color:var(--coral);margin-top:6px}
+.btn:disabled{opacity:.6}
+.visit{background:var(--card);border-radius:18px;padding:10px 14px;margin-top:8px;box-shadow:var(--shadow);font-size:14px}
+.visit p{color:var(--muted);margin-top:3px}
+.login{max-width:430px;margin:0 auto;min-height:100vh;background:var(--bg);padding:0 0 30px}
+.login .box{padding:0 24px}.login h2{font-size:26px;font-weight:800;margin:6px 0 4px}
+.err{color:#c0503a;font-weight:700;font-size:14px;margin-top:10px;min-height:20px}
+.toast{position:fixed;left:50%;bottom:112px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:12;width:max-content;max-width:90%}
+.toast.on{opacity:1}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:12px 18px;scrollbar-width:none}
+.chip{flex:0 0 auto;border:0;background:var(--card);color:var(--text);font:inherit;font-weight:700;font-size:14px;padding:8px 16px;border-radius:999px;cursor:pointer;box-shadow:var(--shadow)}
+.chip.on{background:var(--green);color:#fff}
+.grid{padding:4px 18px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fcard{background:var(--card);border-radius:24px;overflow:hidden;box-shadow:var(--shadow);border:0;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.fcard .ph{height:110px;font-size:44px}.fcard .t{padding:10px 12px 12px}
+.price{float:right;color:var(--muted);font-size:13px;font-weight:700}
+.link{display:block;text-align:center;text-decoration:none}
+#mapbox{position:relative;z-index:0;height:52vh;min-height:300px;margin:0 18px;border-radius:26px;box-shadow:var(--shadow);overflow:hidden}
+.pin{width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.legend{display:flex;gap:14px;padding:12px 20px 0;font-size:13px;font-weight:700;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.chk{display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:700}.chk input{width:auto;box-shadow:none}
+button:focus-visible,a:focus-visible{outline:3px solid var(--coral);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login hide" id="login">
+  <div class="hero" style="height:240px"><svg id="art1" viewBox="0 0 430 230" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg></div>
+  <div class="box">
+    <h2>My Little Atlas</h2>
+    <p style="color:var(--muted)">A little world where you keep the places, flavors, and moments you don’t want to forget.</p>
+    <label for="em">Email</label><input id="em" type="email" autocomplete="email">
+    <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password">
+    <div class="err" id="lerr"></div>
+    <button class="btn" id="lbtn">Start exploring</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app hide" id="app">
+  <section class="page on" id="home">
+    <div class="hero"><svg id="art2" viewBox="0 0 430 230" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+      <h1>Hello, Explorer</h1><button class="out" id="gear" style="left:14px;right:auto">🧺 Collections</button><button class="out" id="out">Sign out</button></div>
+    <div class="sheetc">
+      <div class="stats">
+        <div class="stat" style="background:var(--aqua)"><i>📍</i><div><b id="s1">0</b><br><span>Places visited</span></div></div>
+        <div class="stat" style="background:var(--peach)"><i>🍜</i><div><b id="s2">0</b><br><span>Foods tried</span></div></div>
+        <div class="stat" style="background:var(--sage)"><i>🏙️</i><div><b id="s3">0</b><br><span>Cities explored</span></div></div>
+        <div class="stat" style="background:var(--butter)"><i>🎒</i><div><b id="s4">0</b><br><span>On wishlist</span></div></div>
+      </div>
+      <div class="sec"><h2>Recent memories</h2></div>
+      <div class="row" id="mems"></div>
+      <div class="sec"><h2>Ready for a little adventure?</h2></div>
+      <div class="quick">
+        <button style="background:var(--aqua)" data-add="place"><span>📍</span>Add a Place</button>
+        <button style="background:var(--peach)" data-add="food"><span>🍰</span>Add Food</button>
+        <button style="background:var(--butter)" data-add="wish"><span>⭐</span>Add Wishlist</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="places">
+    <div class="head"><h1>My Places</h1><p>Every little spot you’ve been to.</p></div>
+    <div class="list" id="plist"></div>
+  </section>
+
+  <section class="page" id="food">
+    <div class="head"><h1>Food Journal</h1><p>A little taste worth remembering.</p></div>
+    <div class="chips" id="fchips"></div>
+    <div class="grid" id="fgrid"></div>
+  </section>
+
+  <section class="page" id="wish">
+    <div class="head"><h1>Wishlist</h1><p>Somewhere I’d love to go.</p></div>
+    <div class="chips" id="wchips"></div>
+    <div class="list" id="wlist"></div>
+  </section>
+
+  <section class="page" id="map">
+    <div class="head"><h1>Explore Map</h1><p>Your little world, pinned.</p></div>
+    <div class="chips" id="mchips"></div>
+    <div style="padding:0 18px 12px"><select id="mcat" aria-label="Filter by category"></select></div>
+    <div id="mapbox"></div>
+    <div class="legend"><span><i style="background:#6f8a4e"></i>Visited</span><span><i style="background:#E99B83"></i>Planned</span><span><i style="background:#e0b84a"></i>Wishlist</span></div>
+    <div class="head" id="nophead"><h1 style="font-size:20px">Not on the map yet</h1><p>Tap one to find its spot.</p></div>
+    <div class="list" id="nopin"></div>
+  </section>
+
+  <section class="page" id="set">
+    <div class="head"><h1>My Collections</h1><p>Your own little shelves.</p></div>
+    <div class="list" id="clist"></div>
+    <div style="padding:0 18px"><button class="btn" id="newc">New collection</button></div>
+    <div class="head"><h1 style="font-size:22px">Categories</h1><p>Tap one to rename or remove it.</p></div>
+    <div class="list" id="catlist"></div>
+    <div style="padding:0 18px"><button class="btn s" id="newcat">New category</button></div>
+  </section>
+
+  <nav>
+    <button data-go="home" class="on"><span>🏡</span>Home</button>
+    <button data-go="places"><span>📍</span>Places</button>
+    <button data-go="food"><span>🍜</span>Food</button>
+    <button class="plus" id="plus" aria-label="Add something">+</button>
+    <button data-go="wish"><span>⭐</span>Wishlist</button>
+    <button data-go="map"><span>🗺️</span>Map</button>
+    <button data-go="set"><span>🧺</span>Collections</button>
+  </nav>
+</div>
+
+<div id="layer"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ====== PENGATURAN (aman dipublikasikan: URL + publishable key) ======
+var SUPABASE_URL = 'https://fcsdzdyndybswqqqhixw.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_jJu7VQl5H3zLbf4wZg7jiA_DOWr-Hdl';
+// =====================================================================
+
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+var $ = function(s){return document.querySelector(s)};
+var esc = function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+var EMO = {'Cafe':'☕','Restaurant':'🍽️','Nature':'🌿','Beach':'🏖️','Mountain':'⛰️','Museum':'🏛️','Tourist Attraction':'🗼','Shopping':'🛍️','Hidden Gems':'💎','Other':'📍'};
+var COL = ['var(--aqua)','var(--peach)','var(--sage)','var(--butter)','var(--sky)'];
+var cats = [], places = [];
+
+var ART = '<defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F8D8BD"/><stop offset="1" stop-color="#FFF1DC"/></linearGradient></defs><rect width="430" height="230" fill="url(#sk)"/><g fill="#fff" opacity=".9"><ellipse cx="70" cy="70" rx="38" ry="12"/><ellipse cx="95" cy="62" rx="26" ry="12"/><ellipse cx="350" cy="52" rx="40" ry="12"/></g><path d="M0 150 Q90 95 180 140 T360 120 T430 135 V230 H0Z" fill="#c9d6a8"/><path d="M0 175 Q120 130 240 170 T430 160 V230 H0Z" fill="#A8BC8A"/><path d="M30 180 l24 -62 l24 62z" fill="#6f8a4e"/><rect x="51" y="180" width="6" height="14" fill="#7a5a3a"/><path d="M92 188 l18 -48 l18 48z" fill="#6f8a4e"/><path d="M268 190 L322 112 L376 190Z" fill="#E99B83"/><path d="M322 112 L322 190 L376 190Z" fill="#d9825f"/><path d="M322 150 L304 190 L340 190Z" fill="#7a3f2c"/><circle cx="200" cy="196" r="9" fill="#9aa0a0"/><g fill="#F5E5A6"><circle cx="150" cy="210" r="5"/><circle cx="240" cy="214" r="5"/></g>';
+$('#art1').innerHTML = ART; $('#art2').innerHTML = ART.replace('id="sk"','id="sk2"').replace('url(#sk)','url(#sk2)');
+
+function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(function(){t.classList.remove('on')},2600)}
+function today(){return new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10)}
+function fdate(d){return d?new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):''}
+function stars(n){n=n||0;return '★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n)}
+function latest(p){return (p.place_visits||[]).slice().sort(function(a,b){return a.visited_on<b.visited_on?1:-1})[0]}
+
+// ----- LOGIN -----
+function showLogin(){$('#app').classList.add('hide');$('#login').classList.remove('hide')}
+function showApp(){$('#login').classList.add('hide');$('#app').classList.remove('hide');init()}
+$('#lbtn').onclick=async function(){
+  var b=this;b.disabled=true;$('#lerr').textContent='';
+  var r=await sb.auth.signInWithPassword({email:$('#em').value.trim(),password:$('#pw').value});
+  b.disabled=false;
+  if(r.error){$('#lerr').textContent='Couldn’t sign in. Check your email and password, then try again.';return}
+  showApp();
+};
+$('#out').onclick=async function(){await sb.auth.signOut();showLogin()};
+
+// ----- NAVIGASI -----
+function go(id){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.toggle('on',p.id==id)});
+  document.querySelectorAll('nav [data-go]').forEach(function(b){b.classList.toggle('on',b.dataset.go==id)});
+  window.scrollTo(0,0);
+  if(id=='home')loadHome();if(id=='places')loadPlaces();if(id=='food')loadFood();if(id=='wish')loadWish();if(id=='set')loadSet();if(id=='map')loadMap();
+}
+document.addEventListener('click',function(e){
+  var g=e.target.closest('[data-go]');if(g)go(g.dataset.go);
+  var a=e.target.closest('[data-add]');
+  if(a){var k=a.dataset.add;k=='place'?placeForm():k=='food'?foodForm():wishForm()}
+});
+$('#plus').onclick=chooser;
+
+// ----- DATA -----
+async function init(){
+  var r=await sb.from('categories').select('id,name,kind').order('name');
+  var all=r.data||[];
+  cats=all.filter(function(c){return c.kind=='place'});
+  fcats=all.filter(function(c){return c.kind=='food'});
+  go('home');
+}
+async function loadHome(){
+  var q=await Promise.all([
+    sb.from('places').select('city'),
+    sb.from('food_entries').select('*',{count:'exact',head:true}),
+    sb.from('wishlists').select('*',{count:'exact',head:true}).neq('status','visited'),
+    sb.from('place_visits').select('id,visited_on,places(name,city,categories(name))').order('visited_on',{ascending:false}).limit(6)
+  ]);
+  var pl=q[0].data||[];
+  var cities={};pl.forEach(function(p){if(p.city)cities[p.city.trim().toLowerCase()]=1});
+  $('#s1').textContent=pl.length;$('#s2').textContent=q[1].count||0;
+  $('#s3').textContent=Object.keys(cities).length;$('#s4').textContent=q[2].count||0;
+  var v=q[3].data||[];
+  $('#mems').innerHTML=v.length?v.map(function(x,i){
+    var p=x.places||{},c=(p.categories||{}).name;
+    return '<div class="mem"><div class="ph" style="background:'+COL[i%5]+'">'+(EMO[c]||'📍')+'</div><div class="t"><b>'+esc(p.name)+'</b><small>'+esc(p.city||'')+' · '+fdate(x.visited_on)+'</small></div></div>'
+  }).join(''):'<div class="empty" style="padding:16px 8px"><div>🗺️</div>Your first memory is one tap away.</div>';
+}
+async function loadPlaces(){
+  var r=await sb.from('places').select('id,name,city,country,address,maps_url,category_id,categories(name),place_visits(id,visited_on,rating,cost,story)').order('created_at',{ascending:false});
+  if(r.error){toast('Couldn’t load places: '+r.error.message);return}
+  places=r.data||[];
+  $('#plist').innerHTML=places.length?places.map(function(p,i){
+    var l=latest(p),c=(p.categories||{}).name,n=(p.place_visits||[]).length;
+    return '<button class="card" data-pid="'+p.id+'"><div class="ph" style="background:'+COL[i%5]+'">'+(EMO[c]||'📍')+'</div><div><b>'+esc(p.name)+'</b><small>'+esc(p.city||'')+(l?' · '+fdate(l.visited_on):'')+(n>1?' · '+n+' visits':'')+'</small><div class="stars">'+stars(l&&l.rating)+'</div>'+(c?'<span class="tag">'+esc(c)+'</span>':'')+'</div></button>'
+  }).join(''):'<div class="empty"><div>🗺️</div>No places yet. A new memory begins with a tap on +.</div>';
+}
+$('#plist').onclick=function(e){var c=e.target.closest('[data-pid]');if(c)placeDetail(c.dataset.pid)};
+
+// ----- BOTTOM SHEET -----
+function sheet(html){
+  $('#layer').innerHTML='<div class="scrim" id="scr"></div><div class="sheet" role="dialog">'+html+'</div>';
+  $('#scr').onclick=closeSheet;
+}
+function closeSheet(){$('#layer').innerHTML=''}
+function visitFields(){
+  return '<div class="two"><div><label for="f_date">Date</label><input id="f_date" type="date" value="'+today()+'"></div>'+
+  '<div><label for="f_rate">Rating</label><select id="f_rate"><option value="">–</option><option value="5">★★★★★</option><option value="4">★★★★</option><option value="3">★★★</option><option value="2">★★</option><option value="1">★</option></select></div></div>'+
+  '<label for="f_cost">Spent (optional)</label><input id="f_cost" type="number" inputmode="decimal" min="0" placeholder="e.g. 85000">'+
+  '<label for="f_story">Your story (optional)</label><textarea id="f_story" placeholder="What made it worth remembering?"></textarea>';
+}
+function readVisit(placeId){
+  return {place_id:placeId,visited_on:$('#f_date').value||today(),rating:Number($('#f_rate').value)||null,cost:$('#f_cost').value===''?null:Number($('#f_cost').value),story:$('#f_story').value.trim()||null};
+}
+function placeForm(){
+  sheet('<h3>A new memory begins here.</h3>'+
+  '<label for="f_name">Place name</label><input id="f_name" placeholder="e.g. Kopi Senja" autocomplete="off">'+
+  '<label for="f_cat">Category</label><select id="f_cat"><option value="">Choose…</option>'+cats.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>'}).join('')+'</select>'+
+  '<div class="two"><div><label for="f_city">City</label><input id="f_city"></div><div><label for="f_country">Country</label><input id="f_country" value="Indonesia"></div></div>'+
+  '<label for="f_maps">Google Maps link (optional)</label><input id="f_maps" type="url" placeholder="https://maps.app.goo.gl/…">'+
+  visitFields()+'<button class="btn" id="save">Save memory</button><button class="btn d" id="cancel">Cancel</button>');
+  $('#cancel').onclick=closeSheet;
+  $('#save').onclick=async function(){
+    var name=$('#f_name').value.trim();if(!name){toast('Give your place a name first.');return}
+    this.disabled=true;
+    var pr=await sb.from('places').insert({name:name,category_id:$('#f_cat').value||null,city:$('#f_city').value.trim()||null,country:$('#f_country').value.trim()||null,maps_url:$('#f_maps').value.trim()||null}).select('id').single();
+    if(pr.error){toast('Couldn’t save: '+pr.error.message);this.disabled=false;return}
+    var vr=await sb.from('place_visits').insert(readVisit(pr.data.id));
+    if(vr.error){toast('Place saved, but the visit wasn’t: '+vr.error.message)}else{toast('Saved. A new memory is in your atlas.')}
+    closeSheet();go($('#places').classList.contains('on')?'places':'home');
+  };
+}
+function placeDetail(id){
+  var p=places.find(function(x){return x.id==id});if(!p)return;
+  var vs=(p.place_visits||[]).slice().sort(function(a,b){return a.visited_on<b.visited_on?1:-1});
+  sheet('<h3>'+esc(p.name)+'</h3><small style="color:var(--muted)">'+esc([p.city,p.country].filter(Boolean).join(', '))+'</small>'+
+  (p.maps_url?'<p style="margin-top:8px"><a href="'+esc(p.maps_url)+'" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Open in Google Maps</a></p>':'')+
+  '<div style="margin-top:12px;font-weight:800">Visit history</div>'+
+  vs.map(function(v){return '<div class="visit"><b>'+fdate(v.visited_on)+'</b> <span class="stars">'+stars(v.rating)+'</span>'+(v.cost?' · Rp '+Number(v.cost).toLocaleString('id-ID'):'')+(v.story?'<p>'+esc(v.story)+'</p>':'')+'</div>'}).join('')+
+  '<button class="btn" id="addv">Add another visit</button><button class="btn s" id="editp">Edit place</button><button class="btn s" id="addc">Add to collection</button><button class="btn s" id="close">Close</button><button class="btn d" id="del">Delete this place</button>');
+  $('#editp').onclick=function(){editSheet('Edit place','places',p,[{k:'name',l:'Place name',req:1},{k:'category_id',l:'Category',t:'select',o:catOpts(cats)},{k:'city',l:'City'},{k:'country',l:'Country'},{k:'maps_url',l:'Google Maps link',t:'url'}],loadPlaces)};
+  $('#addc').onclick=function(){addToColl('place',p.id)};
+  $('#close').onclick=closeSheet;
+  $('#addv').onclick=function(){
+    sheet('<h3>Back at '+esc(p.name)+'</h3>'+visitFields()+'<button class="btn" id="sv">Save visit</button><button class="btn d" id="cancel">Cancel</button>');
+    $('#cancel').onclick=closeSheet;
+    $('#sv').onclick=async function(){this.disabled=true;var r=await sb.from('place_visits').insert(readVisit(p.id));
+      if(r.error){toast('Couldn’t save: '+r.error.message);this.disabled=false;return}
+      toast('Visit added.');closeSheet();loadPlaces()};
+  };
+  $('#del').onclick=async function(){
+    if(!confirm('Delete “'+p.name+'” and all its visits? This can’t be undone.'))return;
+    var r=await sb.from('places').delete().eq('id',p.id);
+    if(r.error){toast('Couldn’t delete: '+r.error.message);return}
+    toast('Place deleted.');closeSheet();loadPlaces();
+  };
+}
+
+// ----- QUICK ADD -----
+function chooser(){
+  sheet('<h3>What would you like to add?</h3><div class="quick">'+
+  '<button style="background:var(--aqua)" data-add="place"><span>📍</span>Place</button>'+
+  '<button style="background:var(--peach)" data-add="food"><span>🍰</span>Food</button>'+
+  '<button style="background:var(--butter)" data-add="wish"><span>⭐</span>Wishlist</button></div>');
+}
+function opts(list,ph){return '<option value="">'+ph+'</option>'+list.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>'}).join('')}
+function money(n){return 'Rp '+Number(n).toLocaleString('id-ID')}
+
+// ----- FOOD JOURNAL -----
+var fcats=[],foods=[],fFilter='All';
+var FEMO={'Indonesian':'🍛','Japanese':'🍣','Korean':'🍲','Chinese':'🥟','Taiwanese':'🧋','Western':'🍔','Dessert':'🍰','Coffee':'☕','Drinks':'🥤','Street Food':'🍢','Homemade':'🍳','Other':'🍽️'};
+async function loadFood(){
+  var r=await sb.from('food_entries').select('id,name,restaurant_name,tried_on,city,price,rating,taste,texture,notes,would_try_again,category_id,categories(name),places(name)').order('tried_on',{ascending:false});
+  if(r.error){toast('Couldn’t load foods: '+r.error.message);return}
+  foods=r.data||[];renderFood();
+}
+function renderFood(){
+  $('#fchips').innerHTML=['All'].concat(fcats.map(function(c){return c.name})).map(function(n){return '<button class="chip'+(n==fFilter?' on':'')+'" data-fc="'+esc(n)+'">'+esc(n)+'</button>'}).join('');
+  var l=foods.filter(function(f){return fFilter=='All'||(f.categories||{}).name==fFilter});
+  $('#fgrid').innerHTML=l.length?l.map(function(f,i){var c=(f.categories||{}).name;
+    return '<button class="fcard" data-fid="'+f.id+'"><div class="ph" style="background:'+COL[i%5]+'">'+(FEMO[c]||'🍽️')+'</div><div class="t">'+(f.price?'<span class="price">'+money(f.price)+'</span>':'')+'<b>'+esc(f.name)+'</b><small>'+esc(f.restaurant_name||(f.places||{}).name||'')+'</small><div class="stars">'+stars(f.rating)+'</div></div></button>'
+  }).join(''):'<div class="empty" style="grid-column:1/-1"><div>🍰</div>No tastes here yet. Tap + to add one.</div>';
+}
+$('#fchips').onclick=function(e){var c=e.target.closest('[data-fc]');if(c){fFilter=c.dataset.fc;renderFood()}};
+$('#fgrid').onclick=function(e){var c=e.target.closest('[data-fid]');if(c)foodDetail(c.dataset.fid)};
+async function foodForm(){
+  var pr=await sb.from('places').select('id,name').order('name');
+  sheet('<h3>A little taste worth remembering.</h3>'+
+  '<label for="g_name">Food or drink</label><input id="g_name" placeholder="e.g. Tonkotsu ramen" autocomplete="off">'+
+  '<label for="g_cat">Category</label><select id="g_cat">'+opts(fcats,'Choose…')+'</select>'+
+  '<label for="g_rest">Restaurant or place</label><input id="g_rest" autocomplete="off">'+
+  '<label for="g_pl">Link to one of your places (optional)</label><select id="g_pl">'+opts(pr.data||[],'None')+'</select>'+
+  '<div class="two"><div><label for="g_date">Date</label><input id="g_date" type="date" value="'+today()+'"></div><div><label for="g_city">City</label><input id="g_city"></div></div>'+
+  '<div class="two"><div><label for="g_price">Price</label><input id="g_price" type="number" inputmode="decimal" min="0"></div>'+
+  '<div><label for="g_rate">Rating</label><select id="g_rate"><option value="">–</option><option value="5">★★★★★</option><option value="4">★★★★</option><option value="3">★★★</option><option value="2">★★</option><option value="1">★</option></select></div></div>'+
+  '<div class="two"><div><label for="g_taste">Taste</label><input id="g_taste" placeholder="sweet, rich…"></div><div><label for="g_tex">Texture</label><input id="g_tex" placeholder="crispy, silky…"></div></div>'+
+  '<label for="g_notes">Notes (optional)</label><textarea id="g_notes"></textarea>'+
+  '<label class="chk"><input id="g_again" type="checkbox"> I’d order this again</label>'+
+  '<button class="btn" id="save">Save taste</button><button class="btn d" id="cancel">Cancel</button>');
+  $('#cancel').onclick=closeSheet;
+  $('#save').onclick=async function(){
+    var name=$('#g_name').value.trim();if(!name){toast('What did you eat or drink?');return}
+    this.disabled=true;
+    var r=await sb.from('food_entries').insert({name:name,category_id:$('#g_cat').value||null,restaurant_name:$('#g_rest').value.trim()||null,place_id:$('#g_pl').value||null,tried_on:$('#g_date').value||today(),city:$('#g_city').value.trim()||null,price:$('#g_price').value===''?null:Number($('#g_price').value),rating:Number($('#g_rate').value)||null,taste:$('#g_taste').value.trim()||null,texture:$('#g_tex').value.trim()||null,notes:$('#g_notes').value.trim()||null,would_try_again:$('#g_again').checked});
+    if(r.error){toast('Couldn’t save: '+r.error.message);this.disabled=false;return}
+    toast('Saved. A little taste, remembered.');closeSheet();go('food');
+  };
+}
+function foodDetail(id){
+  var f=foods.find(function(x){return x.id==id});if(!f)return;
+  var rows=[['Where',f.restaurant_name||(f.places||{}).name],['City',f.city],['Date',fdate(f.tried_on)],['Price',f.price?money(f.price):''],['Taste',f.taste],['Texture',f.texture],['Order again?',f.would_try_again?'Yes':'']].filter(function(r){return r[1]});
+  sheet('<h3>'+esc(f.name)+'</h3><div class="stars">'+stars(f.rating)+'</div>'+
+  rows.map(function(r){return '<div class="visit"><b>'+r[0]+'</b> · '+esc(r[1])+'</div>'}).join('')+
+  (f.notes?'<div class="visit">'+esc(f.notes)+'</div>':'')+
+  '<button class="btn s" id="editf">Edit entry</button><button class="btn s" id="addc">Add to collection</button><button class="btn s" id="close">Close</button><button class="btn d" id="del">Delete this entry</button>');
+  $('#editf').onclick=function(){editSheet('Edit entry','food_entries',f,[{k:'name',l:'Food or drink',req:1},{k:'category_id',l:'Category',t:'select',o:catOpts(fcats)},{k:'restaurant_name',l:'Restaurant or place'},{k:'tried_on',l:'Date',t:'date'},{k:'city',l:'City'},{k:'price',l:'Price',t:'number'},{k:'rating',l:'Rating',t:'select',n:1,o:RATE},{k:'taste',l:'Taste'},{k:'texture',l:'Texture'},{k:'notes',l:'Notes',t:'textarea'}],loadFood)};
+  $('#addc').onclick=function(){addToColl('food',f.id)};
+  $('#close').onclick=closeSheet;
+  $('#del').onclick=async function(){
+    if(!confirm('Delete “'+f.name+'”? This can’t be undone.'))return;
+    var r=await sb.from('food_entries').delete().eq('id',f.id);
+    if(r.error){toast('Couldn’t delete: '+r.error.message);return}
+    toast('Entry deleted.');closeSheet();loadFood();
+  };
+}
+
+// ----- WISHLIST -----
+var wishes=[],wFilter='All';
+var ST={wishlist:'Wishlist',planned:'Planned',visited:'Visited'},PRI={low:'Low',medium:'Medium',high:'High'};
+async function loadWish(){
+  var r=await sb.from('wishlists').select('*,categories(name)').order('created_at',{ascending:false});
+  if(r.error){toast('Couldn’t load wishlist: '+r.error.message);return}
+  wishes=r.data||[];renderWish();
+}
+function renderWish(){
+  $('#wchips').innerHTML=['All','Wishlist','Planned','Visited'].map(function(n){return '<button class="chip'+(n==wFilter?' on':'')+'" data-wf="'+n+'">'+n+'</button>'}).join('');
+  var l=wishes.filter(function(w){return wFilter=='All'||ST[w.status]==wFilter});
+  $('#wlist').innerHTML=l.length?l.map(function(w,i){var c=(w.categories||{}).name;
+    return '<button class="card" data-wid="'+w.id+'"><div class="ph" style="background:'+COL[i%5]+'">'+(EMO[c]||'⭐')+'</div><div><b>'+esc(w.name)+'</b><small>'+esc(w.city||'')+(w.target_date?' · '+fdate(w.target_date):'')+' · '+PRI[w.priority]+' priority</small><br><span class="tag">'+ST[w.status]+'</span></div></button>'
+  }).join(''):'<div class="empty"><div>🎒</div>Nothing here yet. Somewhere you’d love to go? Tap +.</div>';
+}
+$('#wchips').onclick=function(e){var c=e.target.closest('[data-wf]');if(c){wFilter=c.dataset.wf;renderWish()}};
+$('#wlist').onclick=function(e){var c=e.target.closest('[data-wid]');if(c)wishDetail(c.dataset.wid)};
+function wishForm(){
+  sheet('<h3>Somewhere I’d love to go.</h3>'+
+  '<label for="w_name">Place or activity</label><input id="w_name" autocomplete="off">'+
+  '<label for="w_cat">Category</label><select id="w_cat">'+opts(cats,'Choose…')+'</select>'+
+  '<div class="two"><div><label for="w_city">City</label><input id="w_city"></div><div><label for="w_country">Country</label><input id="w_country" value="Indonesia"></div></div>'+
+  '<label for="w_maps">Google Maps link (optional)</label><input id="w_maps" type="url" placeholder="https://maps.app.goo.gl/…">'+
+  '<label for="w_why">Why do you want to go?</label><textarea id="w_why"></textarea>'+
+  '<div class="two"><div><label for="w_pri">Priority</label><select id="w_pri"><option value="medium">Medium</option><option value="high">High</option><option value="low">Low</option></select></div>'+
+  '<div><label for="w_st">Status</label><select id="w_st"><option value="wishlist">Wishlist</option><option value="planned">Planned</option></select></div></div>'+
+  '<div class="two"><div><label for="w_bud">Budget</label><input id="w_bud" type="number" inputmode="decimal" min="0"></div><div><label for="w_date">Target date</label><input id="w_date" type="date"></div></div>'+
+  '<button class="btn" id="save">Save to wishlist</button><button class="btn d" id="cancel">Cancel</button>');
+  $('#cancel').onclick=closeSheet;
+  $('#save').onclick=async function(){
+    var name=$('#w_name').value.trim();if(!name){toast('Where would you love to go?');return}
+    this.disabled=true;
+    var r=await sb.from('wishlists').insert({name:name,category_id:$('#w_cat').value||null,city:$('#w_city').value.trim()||null,country:$('#w_country').value.trim()||null,maps_url:$('#w_maps').value.trim()||null,reason:$('#w_why').value.trim()||null,priority:$('#w_pri').value,status:$('#w_st').value,budget:$('#w_bud').value===''?null:Number($('#w_bud').value),target_date:$('#w_date').value||null});
+    if(r.error){toast('Couldn’t save: '+r.error.message);this.disabled=false;return}
+    toast('Added. Someday soon.');closeSheet();go('wish');
+  };
+}
+function calUrl(w){
+  var u='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(w.name)+'&location='+encodeURIComponent([w.address,w.city,w.country].filter(Boolean).join(', '))+'&details='+encodeURIComponent([w.reason,w.maps_url].filter(Boolean).join('\n'));
+  if(w.target_date){var n=new Date(w.target_date+'T00:00:00');n.setDate(n.getDate()+1);
+    u+='&dates='+w.target_date.replace(/-/g,'')+'/'+n.getFullYear()+('0'+(n.getMonth()+1)).slice(-2)+('0'+n.getDate()).slice(-2)}
+  return u;
+}
+function wishDetail(id){
+  var w=wishes.find(function(x){return x.id==id});if(!w)return;
+  sheet('<h3>'+esc(w.name)+'</h3><span class="tag">'+ST[w.status]+'</span> <small style="color:var(--muted)">'+PRI[w.priority]+' priority</small>'+
+  (w.reason?'<div class="visit">'+esc(w.reason)+'</div>':'')+
+  (w.city?'<div class="visit"><b>Where</b> · '+esc([w.city,w.country].filter(Boolean).join(', '))+'</div>':'')+
+  (w.budget?'<div class="visit"><b>Budget</b> · '+money(w.budget)+'</div>':'')+
+  (w.target_date?'<div class="visit"><b>Target</b> · '+fdate(w.target_date)+'</div>':'')+
+  (w.maps_url?'<p style="margin-top:10px"><a href="'+esc(w.maps_url)+'" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Open in Google Maps</a></p>':'')+
+  '<a class="btn link" target="_blank" rel="noopener" href="'+esc(calUrl(w))+'">Add to Google Calendar</a>'+
+  (w.status!='visited'?'<button class="btn s" id="vis">We went! Mark as visited</button>':'')+
+  '<button class="btn s" id="editw">Edit wishlist item</button><button class="btn s" id="close">Close</button><button class="btn d" id="del">Delete from wishlist</button>');
+  $('#editw').onclick=function(){editSheet('Edit wishlist item','wishlists',w,[{k:'name',l:'Place or activity',req:1},{k:'category_id',l:'Category',t:'select',o:catOpts(cats)},{k:'city',l:'City'},{k:'country',l:'Country'},{k:'maps_url',l:'Google Maps link',t:'url'},{k:'reason',l:'Why do you want to go?',t:'textarea'},{k:'priority',l:'Priority',t:'select',o:[['high','High'],['medium','Medium'],['low','Low']]},{k:'status',l:'Status',t:'select',o:[['wishlist','Wishlist'],['planned','Planned'],['visited','Visited']]},{k:'budget',l:'Budget',t:'number'},{k:'target_date',l:'Target date',t:'date'}],loadWish)};
+  $('#close').onclick=closeSheet;
+  if($('#vis'))$('#vis').onclick=async function(){
+    this.disabled=true;
+    var pr=await sb.from('places').insert({name:w.name,category_id:w.category_id,city:w.city,country:w.country,address:w.address,maps_url:w.maps_url,lat:w.lat,lng:w.lng}).select('id').single();
+    if(pr.error){toast('Couldn’t save: '+pr.error.message);this.disabled=false;return}
+    var vr=await sb.from('place_visits').insert({place_id:pr.data.id,visited_on:today(),story:w.reason});
+    var ur=await sb.from('wishlists').update({status:'visited',converted_place_id:pr.data.id}).eq('id',w.id);
+    if(vr.error||ur.error){toast('Place saved, but something else didn’t update. Please check My Places.')}else{toast('Wonderful. It’s now in My Places.')}
+    closeSheet();loadWish();
+  };
+  $('#del').onclick=async function(){
+    if(!confirm('Delete “'+w.name+'” from your wishlist? This can’t be undone.'))return;
+    var r=await sb.from('wishlists').delete().eq('id',w.id);
+    if(r.error){toast('Couldn’t delete: '+r.error.message);return}
+    toast('Removed.');closeSheet();loadWish();
+  };
+}
+
+// ----- EDITOR UMUM -----
+var RATE=[['','–'],[5,'★★★★★'],[4,'★★★★'],[3,'★★★'],[2,'★★'],[1,'★']];
+function catOpts(list){return [['','None']].concat(list.map(function(c){return [c.id,c.name]}))}
+function editSheet(title,table,row,fields,done){
+  sheet('<h3>'+esc(title)+'</h3>'+fields.map(function(f){
+    var v=row[f.k]==null?'':row[f.k],id='e_'+f.k,inp;
+    if(f.t=='select')inp='<select id="'+id+'">'+f.o.map(function(o){return '<option value="'+esc(o[0])+'"'+(String(o[0])==String(v)?' selected':'')+'>'+esc(o[1])+'</option>'}).join('')+'</select>';
+    else if(f.t=='textarea')inp='<textarea id="'+id+'">'+esc(v)+'</textarea>';
+    else inp='<input id="'+id+'" type="'+(f.t||'text')+'"'+(f.t=='number'?' inputmode="decimal" min="0"':'')+' value="'+esc(v)+'">';
+    return '<label for="'+id+'">'+esc(f.l)+'</label>'+inp;
+  }).join('')+'<button class="btn" id="esave">Save changes</button><button class="btn d" id="ecancel">Cancel</button>');
+  $('#ecancel').onclick=closeSheet;
+  $('#esave').onclick=async function(){
+    var p={},bad=false;
+    fields.forEach(function(f){var x=$('#e_'+f.k).value.trim();if(f.req&&!x)bad=true;p[f.k]=x===''?null:((f.t=='number'||f.n)?Number(x):x)});
+    if(bad){toast('Please fill in the name first.');return}
+    this.disabled=true;
+    var r=await sb.from(table).update(p).eq('id',row.id);
+    if(r.error){toast('Couldn’t save: '+r.error.message);this.disabled=false;return}
+    toast('Saved.');closeSheet();done();
+  };
+}
+
+// ----- COLLECTIONS & CATEGORIES -----
+async function loadCats(){
+  var r=await sb.from('categories').select('id,name,kind').order('name'),a=r.data||[];
+  cats=a.filter(function(c){return c.kind=='place'});fcats=a.filter(function(c){return c.kind=='food'});return a;
+}
+async function loadSet(){
+  var q=await Promise.all([sb.from('collections').select('id,name,description,collection_items(count)').order('created_at',{ascending:false}),loadCats()]);
+  var cl=q[0].data||[];
+  $('#clist').innerHTML=cl.length?cl.map(function(c,i){var n=(c.collection_items&&c.collection_items[0])?c.collection_items[0].count:0;
+    return '<button class="card" data-cid="'+c.id+'" data-cn="'+esc(c.name)+'"><div class="ph" style="background:'+COL[i%5]+'">🧺</div><div><b>'+esc(c.name)+'</b><small>'+n+' item'+(n==1?'':'s')+(c.description?' · '+esc(c.description):'')+'</small></div></button>'
+  }).join(''):'<div class="empty"><div>🧺</div>No collections yet. Try “Best Coffee” or “Places I Want to Return”.</div>';
+  $('#catlist').innerHTML=['place','food'].map(function(k){
+    return '<div class="visit"><b>'+(k=='place'?'For places':'For food')+'</b><div class="chips" style="padding:8px 0 0;flex-wrap:wrap">'+q[1].filter(function(c){return c.kind==k}).map(function(c){return '<button class="chip" data-catid="'+c.id+'">'+esc(c.name)+'</button>'}).join('')+'</div></div>'
+  }).join('');
+}
+$('#gear').onclick=function(){go('set')};
+$('#clist').onclick=function(e){var c=e.target.closest('[data-cid]');if(c)collDetail(c.dataset.cid,c.dataset.cn)};
+$('#catlist').onclick=function(e){var c=e.target.closest('[data-catid]');if(c)catSheet(c.dataset.catid,c.textContent)};
+$('#newc').onclick=function(){
+  sheet('<h3>A new shelf for your memories.</h3><label for="c_name">Name</label><input id="c_name" placeholder="e.g. Best Coffee" autocomplete="off"><label for="c_desc">Description (optional)</label><input id="c_desc"><button class="btn" id="save">Create collection</button><button class="btn d" id="cancel">Cancel</button>');
+  $('#cancel').onclick=closeSheet;
+  $('#save').onclick=async function(){
+    var n=$('#c_name').value.trim();if(!n){toast('Give your collection a name.');return}
+    this.disabled=true;
+    var r=await sb.from('collections').insert({name:n,description:$('#c_desc').value.trim()||null});
+    if(r.error){toast(r.error.code=='23505'?'You already have a collection with that name.':'Couldn’t save: '+r.error.message);this.disabled=false;return}
+    toast('Collection created.');closeSheet();loadSet();
+  };
+};
+$('#newcat').onclick=function(){
+  sheet('<h3>A new category</h3><label for="k_kind">For</label><select id="k_kind"><option value="place">Places</option><option value="food">Food</option></select><label for="k_name">Name</label><input id="k_name" autocomplete="off"><button class="btn" id="save">Add category</button><button class="btn d" id="cancel">Cancel</button>');
+  $('#cancel').onclick=closeSheet;
+  $('#save').onclick=async function(){
+    var n=$('#k_name').value.trim();if(!n){toast('Give it a name.');return}
+    this.disabled=true;
+    var r=await sb.from('categories').insert({kind:$('#k_kind').value,name:n});
+    if(r.error){toast(r.error.code=='23505'?'That category already exists.':'Couldn’t save: '+r.error.message);this.disabled=false;return}
+    toast('Category added.');closeSheet();loadSet();
+  };
+};
+function catSheet(id,name){
+  sheet('<h3>Edit category</h3><label for="k_name">Name</label><input id="k_name" value="'+esc(name)+'"><button class="btn" id="save">Save name</button><button class="btn d" id="del">Delete category</button><button class="btn s" id="cancel">Cancel</button>');
+  $('#cancel').onclick=closeSheet;
+  $('#save').onclick=async function(){
+    var n=$('#k_name').value.trim();if(!n){toast('Give it a name.');return}
+    var r=await sb.from('categories').update({name:n}).eq('id',id);
+    if(r.error){toast(r.error.code=='23505'?'That name is already used.':'Couldn’t save: '+r.error.message);return}
+    toast('Saved.');closeSheet();loadSet();
+  };
+  $('#del').onclick=async function(){
+    if(!confirm('Delete the category “'+name+'”? Items using it keep their data but become uncategorized.'))return;
+    var r=await sb.from('categories').delete().eq('id',id);
+    if(r.error){toast('Couldn’t delete: '+r.error.message);return}
+    toast('Category deleted.');closeSheet();loadSet();
+  };
+}
+async function collDetail(id,name){
+  var r=await sb.from('collection_items').select('id,places(name,city),food_entries(name,restaurant_name)').eq('collection_id',id),it=r.data||[];
+  sheet('<h3>'+esc(name)+'</h3>'+(it.length?it.map(function(x){var p=x.places,f=x.food_entries||{};
+    return '<div class="visit" style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span>'+(p?'📍 <b>'+esc(p.name)+'</b> '+esc(p.city||''):'🍽️ <b>'+esc(f.name)+'</b> '+esc(f.restaurant_name||''))+'</span><button class="chip" data-rm="'+x.id+'">Remove</button></div>'
+  }).join(''):'<p style="color:var(--muted)">Empty for now. Open a place or food entry and tap “Add to collection”.</p>')+
+  '<button class="btn s" id="close">Close</button><button class="btn d" id="del">Delete this collection</button>');
+  $('#close').onclick=function(){closeSheet();loadSet()};
+  $('#layer').onclick=async function(e){
+    var b=e.target.closest('[data-rm]');if(!b)return;
+    var x=await sb.from('collection_items').delete().eq('id',b.dataset.rm);
+    if(x.error){toast('Couldn’t remove: '+x.error.message);return}
+    toast('Removed from collection.');collDetail(id,name);
+  };
+  $('#del').onclick=async function(){
+    if(!confirm('Delete the collection “'+name+'”? Your places and foods stay safe.'))return;
+    var x=await sb.from('collections').delete().eq('id',id);
+    if(x.error){toast('Couldn’t delete: '+x.error.message);return}
+    toast('Collection deleted.');closeSheet();loadSet();
+  };
+}
+async function addToColl(kind,id){
+  var r=await sb.from('collections').select('id,name').order('name'),l=r.data||[];
+  sheet('<h3>Add to a collection</h3>'+(l.length?l.map(function(c){return '<button class="card" style="margin-top:8px" data-pick="'+c.id+'"><div class="ph" style="background:var(--butter);flex-basis:44px;height:44px;font-size:22px">🧺</div><b>'+esc(c.name)+'</b></button>'}).join(''):'<p style="color:var(--muted)">No collections yet. Create one from Home, under Collections.</p>')+'<button class="btn d" id="cancel">Cancel</button>');
+  $('#cancel').onclick=closeSheet;
+  $('#layer').onclick=async function(e){
+    var b=e.target.closest('[data-pick]');if(!b)return;
+    var row={collection_id:b.dataset.pick};row[kind=='place'?'place_id':'food_entry_id']=id;
+    var x=await sb.from('collection_items').insert(row);
+    if(x.error){toast(x.error.code=='23505'?'Already in that collection.':'Couldn’t add: '+x.error.message);return}
+    toast('Added to your collection.');closeSheet();
+  };
+}
+
+// ----- EXPLORE MAP -----
+var map,mgroup,mItems=[],mFilter='All',mCat='';
+var MCOL={Visited:'#6f8a4e',Planned:'#E99B83',Wishlist:'#e0b84a'};
+function parseMaps(u){
+  var m=u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)||u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||u.match(/[?&](?:q|ll|query|center)=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/);
+  return m?[+m[1],+m[2]]:null;
+}
+async function loadMap(){
+  var q=await Promise.all([
+    sb.from('places').select('id,name,city,lat,lng,maps_url,categories(name)'),
+    sb.from('wishlists').select('id,name,city,lat,lng,maps_url,status,categories(name)').neq('status','visited')]);
+  if(q[0].error||q[1].error){toast('Couldn’t load the map data.');return}
+  mItems=(q[0].data||[]).map(function(p){return {t:'places',id:p.id,name:p.name,city:p.city,lat:p.lat,lng:p.lng,url:p.maps_url,s:'Visited',cat:(p.categories||{}).name}})
+    .concat((q[1].data||[]).map(function(w){return {t:'wishlists',id:w.id,name:w.name,city:w.city,lat:w.lat,lng:w.lng,url:w.maps_url,s:ST[w.status],cat:(w.categories||{}).name}}));
+  renderMap();
+}
+function renderMap(){
+  $('#mchips').innerHTML=['All','Visited','Planned','Wishlist'].map(function(n){return '<button class="chip'+(n==mFilter?' on':'')+'" data-mf="'+n+'">'+n+'</button>'}).join('');
+  var cs=[];mItems.forEach(function(i){if(i.cat&&cs.indexOf(i.cat)<0)cs.push(i.cat)});cs.sort();
+  $('#mcat').innerHTML='<option value="">All categories</option>'+cs.map(function(c){return '<option'+(c==mCat?' selected':'')+'>'+esc(c)+'</option>'}).join('');
+  var l=mItems.filter(function(i){return (mFilter=='All'||i.s==mFilter)&&(!mCat||i.cat==mCat)});
+  if(!map){
+    map=L.map('mapbox').setView([-2.5,118],5);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
+    mgroup=L.layerGroup().addTo(map);
+  }
+  mgroup.clearLayers();var b=[];
+  l.filter(function(i){return i.lat!=null&&i.lng!=null}).forEach(function(i){
+    var m=L.marker([i.lat,i.lng],{icon:L.divIcon({className:'',html:'<div class="pin" style="background:'+MCOL[i.s]+'"></div>',iconSize:[28,28],iconAnchor:[14,28],popupAnchor:[0,-28]})}).addTo(mgroup);
+    m.bindPopup('<b>'+esc(i.name)+'</b><br>'+esc(i.city||'')+'<br><small>'+i.s+(i.cat?' · '+esc(i.cat):'')+'</small><br><button class="chip" style="margin-top:6px">Change location</button>');
+    m.on('popupopen',function(e){e.popup.getElement().querySelector('button').onclick=function(){map.closePopup();locSheet(i)}});
+    b.push([i.lat,i.lng]);
+  });
+  setTimeout(function(){map.invalidateSize();if(b.length)map.fitBounds(b,{padding:[30,30],maxZoom:14})},60);
+  var np=l.filter(function(i){return i.lat==null||i.lng==null});
+  $('#nophead').style.display=np.length?'':'none';
+  $('#nopin').innerHTML=np.map(function(i){return '<button class="card" data-np="'+i.t+':'+i.id+'"><div class="ph" style="background:'+MCOL[i.s]+'33">📍</div><div><b>'+esc(i.name)+'</b><small>'+esc(i.city||'')+' · '+i.s+'</small><br><span class="tag">Set location</span></div></button>'}).join('');
+}
+$('#mchips').onclick=function(e){var c=e.target.closest('[data-mf]');if(c){mFilter=c.dataset.mf;renderMap()}};
+$('#mcat').onchange=function(){mCat=this.value;renderMap()};
+$('#nopin').onclick=function(e){var c=e.target.closest('[data-np]');if(!c)return;var k=c.dataset.np;
+  var it=mItems.find(function(i){return i.t+':'+i.id==k});if(it)locSheet(it)};
+function locSheet(it){
+  sheet('<h3>Where is '+esc(it.name)+'?</h3><label for="l_q">Search for it</label><input id="l_q" value="'+esc([it.name,it.city].filter(Boolean).join(', '))+'"><button class="btn s" id="lsearch">Search</button><div id="lres"></div>'+
+  '<label for="l_link">Or paste a Google Maps link</label><input id="l_link" type="url" value="'+esc(it.url||'')+'" placeholder="https://www.google.com/maps/…"><button class="btn s" id="llink">Use this link</button><button class="btn d" id="cancel">Cancel</button>');
+  $('#cancel').onclick=closeSheet;
+  $('#lsearch').onclick=async function(){
+    var q=$('#l_q').value.trim();if(!q)return;this.disabled=true;
+    try{
+      var r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q='+encodeURIComponent(q)),d=await r.json();
+      $('#lres').innerHTML=d.length?d.map(function(x){return '<button class="card" style="margin-top:8px" data-ll="'+x.lat+','+x.lon+'"><small style="color:var(--text)">'+esc(x.display_name)+'</small></button>'}).join(''):'<p style="color:var(--muted);margin-top:8px">Nothing found. Try a simpler name, or paste a Maps link.</p>';
+    }catch(e){toast('Search isn’t available right now. Try the Maps link instead.')}
+    this.disabled=false;
+  };
+  $('#lres').onclick=function(e){var b=e.target.closest('[data-ll]');if(b){var p=b.dataset.ll.split(',');saveLoc(it,+p[0],+p[1])}};
+  $('#llink').onclick=function(){
+    var u=$('#l_link').value.trim(),p=parseMaps(u);
+    if(!p){toast(/goo\.gl|maps\.app/.test(u)?'Short links can’t be read here. Open it in your browser, then paste the long address.':'I couldn’t find coordinates in that link.');return}
+    saveLoc(it,p[0],p[1]);
+  };
+}
+async function saveLoc(it,lat,lng){
+  var r=await sb.from(it.t).update({lat:lat,lng:lng}).eq('id',it.id);
+  if(r.error){toast('Couldn’t save: '+r.error.message);return}
+  toast('Pinned.');closeSheet();loadMap();
+}
+
+// ----- MULAI -----
+sb.auth.getSession().then(function(r){r.data.session?showApp():showLogin()});
+</script>
+</body>
+</html>
