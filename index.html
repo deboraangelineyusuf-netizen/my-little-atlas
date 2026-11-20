@@ -431,11 +431,12 @@ function wishDetail(id){
   (w.budget?'<div class="visit"><b>Budget</b> · '+money(w.budget)+'</div>':'')+
   (w.target_date?'<div class="visit"><b>Target</b> · '+fdate(w.target_date)+'</div>':'')+
   (w.maps_url?'<p style="margin-top:10px"><a href="'+esc(w.maps_url)+'" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Open in Google Maps</a></p>':'')+
-  '<a class="btn link" target="_blank" rel="noopener" href="'+esc(calUrl(w))+'">Add to Google Calendar</a>'+
+  '<button class="btn" id="planw">Plan a visit (Google Calendar)</button>'+
   (w.status!='visited'?'<button class="btn s" id="vis">We went! Mark as visited</button>':'')+
   '<button class="btn s" id="editw">Edit wishlist item</button><button class="btn s" id="close">Close</button><button class="btn d" id="del">Delete from wishlist</button>');
   $('#editw').onclick=function(){editSheet('Edit wishlist item','wishlists',w,[{k:'name',l:'Place or activity',req:1},{k:'category_id',l:'Category',t:'select',o:catOpts(cats)},{k:'city',l:'City'},{k:'country',l:'Country'},{k:'maps_url',l:'Google Maps link',t:'url'},{k:'reason',l:'Why do you want to go?',t:'textarea'},{k:'priority',l:'Priority',t:'select',o:[['high','High'],['medium','Medium'],['low','Low']]},{k:'status',l:'Status',t:'select',o:[['wishlist','Wishlist'],['planned','Planned'],['visited','Visited']]},{k:'budget',l:'Budget',t:'number'},{k:'target_date',l:'Target date',t:'date'}],loadWish)};
   $('#close').onclick=closeSheet;
+  $('#planw').onclick=function(){calPlace(w,true)};
   if($('#vis'))$('#vis').onclick=async function(){
     this.disabled=true;
     var pr=await sb.from('places').insert({name:w.name,category_id:w.category_id,city:w.city,country:w.country,address:w.address,maps_url:w.maps_url,lat:w.lat,lng:w.lng}).select('id').single();
@@ -635,15 +636,18 @@ async function saveLoc(it,lat,lng){
 // ----- PLAN A VISIT (GOOGLE CALENDAR) -----
 function ymd(x){return x.getFullYear()+('0'+(x.getMonth()+1)).slice(-2)+('0'+x.getDate()).slice(-2)}
 function ymdhm(x){return ymd(x)+'T'+('0'+x.getHours()).slice(-2)+('0'+x.getMinutes()).slice(-2)+'00'}
-function calPlace(p){
-  sheet('<h3>Plan a visit to '+esc(p.name)+'</h3><div class="two"><div><label for="c_d">Date</label><input id="c_d" type="date" value="'+today()+'"></div><div><label for="c_t">Time (optional)</label><input id="c_t" type="time"></div></div><button class="btn" id="cgo">Open Google Calendar</button><button class="btn d" id="cancel">Cancel</button>');
+function calPlace(p,isWish){
+  sheet('<h3>Plan a visit to '+esc(p.name)+'</h3><div class="two"><div><label for="c_d">Date</label><input id="c_d" type="date" value="'+(p.target_date||today())+'"></div><div><label for="c_t">Time (optional)</label><input id="c_t" type="time"></div></div><button class="btn" id="cgo">Open Google Calendar</button><button class="btn d" id="cancel">Cancel</button>');
   $('#cancel').onclick=closeSheet;
   $('#cgo').onclick=function(){
     var d=$('#c_d').value,t=$('#c_t').value;if(!d){toast('Pick a date first.');return}
-    var u='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Visit '+p.name)+'&location='+encodeURIComponent([p.address,p.city,p.country].filter(Boolean).join(', '))+'&details='+encodeURIComponent(p.maps_url||''),s,e;
+    var u='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Visit '+p.name)+'&location='+encodeURIComponent([p.address,p.city,p.country].filter(Boolean).join(', '))+'&details='+encodeURIComponent([p.reason,p.maps_url].filter(Boolean).join('\n')),s,e;
     if(t){var st=new Date(d+'T'+t+':00');s=ymdhm(st);e=ymdhm(new Date(st.getTime()+3600000))}
     else{var n=new Date(d+'T00:00:00');n.setDate(n.getDate()+1);s=d.replace(/-/g,'');e=ymd(n)}
     window.open(u+'&dates='+s+'/'+e,'_blank','noopener');
+    if(isWish)sb.from('wishlists').update({target_date:d,status:p.status=='wishlist'?'planned':p.status}).eq('id',p.id).then(function(r){
+      if(r.error){toast('Calendar opened, but the plan wasn’t saved: '+r.error.message)}else{toast('Planned. Saved to your wishlist too.');closeSheet();loadWish()}
+    });
   };
 }
 
