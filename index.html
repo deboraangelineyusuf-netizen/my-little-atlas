@@ -76,7 +76,20 @@ textarea{min-height:90px;resize:vertical}
 .pin{width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.35)}
 .legend{display:flex;gap:14px;padding:12px 20px 0;font-size:13px;font-weight:700;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.gh{grid-column:1/-1;font-weight:800;font-size:17px;margin:14px 2px 0}.gh small{color:var(--muted);font-weight:600;font-size:13px;margin-left:4px}
+.tl{grid-column:1/-1;display:flex;gap:14px;align-items:flex-start;background:var(--card);border-radius:20px;padding:12px 14px;box-shadow:var(--shadow);border:0;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.tl .day{flex:0 0 44px;text-align:center;font-weight:800;font-size:22px;line-height:1;padding-top:2px}.tl .day small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;margin-top:3px}
+.tl b{display:block}.tl small{color:var(--muted);font-size:13px}
 .chk{display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:700}.chk input{width:auto;box-shadow:none}
+.strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pt{width:72px;height:72px;border-radius:14px;overflow:hidden;background:var(--butter);border:0;padding:0;display:flex;align-items:center;justify-content:center;text-align:center;font:inherit;font-weight:700;font-size:12px;line-height:1.3;color:#34413B;cursor:pointer}
+.pt img{width:100%;height:100%;object-fit:cover;display:block}
+.pt.add{background:var(--card);border:2px dashed var(--sage);font-size:24px;box-shadow:none}
+.pt.bad{background:#f6d0c6}
+.vw{position:fixed;inset:0;background:rgba(20,25,22,.88);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+.vw img{max-width:100%;max-height:68vh;border-radius:14px}
+.vwb{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+.vwb .chip{text-decoration:none}
 button:focus-visible,a:focus-visible{outline:3px solid var(--coral);outline-offset:2px}
 </style>
 </head>
@@ -120,12 +133,15 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--coral);outline-offs
 
   <section class="page" id="places">
     <div class="head"><h1>My Places</h1><p>Every little spot you’ve been to.</p></div>
+    <div class="chips" id="pview"></div>
     <div class="list" id="plist"></div>
   </section>
 
   <section class="page" id="food">
     <div class="head"><h1>Food Journal</h1><p>A little taste worth remembering.</p></div>
-    <div class="chips" id="fchips"></div>
+    <div style="padding:8px 18px 0"><input id="fsearch" type="search" placeholder="Search food, restaurant, city, notes…" aria-label="Search food"></div>
+    <div class="chips" id="fview"></div>
+    <div class="chips" id="fchips" style="padding-top:0"></div>
     <div class="grid" id="fgrid"></div>
   </section>
 
@@ -245,10 +261,11 @@ async function loadPlaces(){
   var r=await sb.from('places').select('id,name,city,country,address,maps_url,category_id,categories(name),place_visits(id,visited_on,rating,cost,story)').order('created_at',{ascending:false});
   if(r.error){toast('Couldn’t load places: '+r.error.message);return}
   places=r.data||[];
-  $('#plist').innerHTML=places.length?places.map(function(p,i){
+  var listHtml=places.length?places.map(function(p,i){
     var l=latest(p),c=(p.categories||{}).name,n=(p.place_visits||[]).length;
     return '<button class="card" data-pid="'+p.id+'"><div class="ph" style="background:'+COL[i%5]+'">'+(EMO[c]||'📍')+'</div><div><b>'+esc(p.name)+'</b><small>'+esc(p.city||'')+(l?' · '+fdate(l.visited_on):'')+(n>1?' · '+n+' visits':'')+'</small><div class="stars">'+stars(l&&l.rating)+'</div>'+(c?'<span class="tag">'+esc(c)+'</span>':'')+'</div></button>'
   }).join(''):'<div class="empty"><div>🗺️</div>No places yet. A new memory begins with a tap on +.</div>';
+  window._pl=listHtml;renderPlaces();
 }
 $('#plist').onclick=function(e){var c=e.target.closest('[data-pid]');if(c)placeDetail(c.dataset.pid)};
 
@@ -291,11 +308,14 @@ function placeDetail(id){
   sheet('<h3>'+esc(p.name)+'</h3><small style="color:var(--muted)">'+esc([p.city,p.country].filter(Boolean).join(', '))+'</small>'+
   (p.maps_url?'<p style="margin-top:8px"><a href="'+esc(p.maps_url)+'" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Open in Google Maps</a></p>':'')+
   '<div style="margin-top:12px;font-weight:800">Visit history</div>'+
-  vs.map(function(v){return '<div class="visit"><b>'+fdate(v.visited_on)+'</b> <span class="stars">'+stars(v.rating)+'</span>'+(v.cost?' · Rp '+Number(v.cost).toLocaleString('id-ID'):'')+(v.story?'<p>'+esc(v.story)+'</p>':'')+'</div>'}).join('')+
-  '<button class="btn" id="addv">Add another visit</button><button class="btn s" id="plan">Plan a visit (Google Calendar)</button><button class="btn s" id="editp">Edit place</button><button class="btn s" id="addc">Add to collection</button><button class="btn s" id="close">Close</button><button class="btn d" id="del">Delete this place</button>');
+  vs.map(function(v){return '<div class="visit"><b>'+fdate(v.visited_on)+'</b> <span class="stars">'+stars(v.rating)+'</span>'+(v.cost?' · Rp '+Number(v.cost).toLocaleString('id-ID'):'')+(v.story?'<p>'+esc(v.story)+'</p>':'')+'<div class="ate" data-d="'+v.visited_on+'"></div><div class="strip" data-strip="place_visit_id:'+v.id+'"></div></div>'}).join('')+
+  '<div id="ate-other"></div><button class="btn" id="addv">Add another visit</button><button class="btn s" id="addfood">Add food eaten here</button><button class="btn s" id="plan">Plan a visit (Google Calendar)</button><button class="btn s" id="editp">Edit place</button><button class="btn s" id="addc">Add to collection</button><button class="btn s" id="close">Close</button><button class="btn d" id="del">Delete this place</button>');
   $('#editp').onclick=function(){editSheet('Edit place','places',p,[{k:'name',l:'Place name',req:1},{k:'category_id',l:'Category',t:'select',o:catOpts(cats)},{k:'city',l:'City'},{k:'country',l:'Country'},{k:'maps_url',l:'Google Maps link',t:'url'}],loadPlaces)};
   $('#addc').onclick=function(){addToColl('place',p.id)};
   $('#plan').onclick=function(){calPlace(p)};
+  $('#addfood').onclick=function(){var l=latest(p);foodForm({place_id:p.id,rest:p.name,city:p.city,date:l?l.visited_on:today()})};
+  loadAte(p);
+  initStrips(vs.map(function(v){return {col:'place_visit_id',id:v.id,kind:'place',year:(v.visited_on||today()).slice(0,4)}}));
   $('#close').onclick=closeSheet;
   $('#addv').onclick=function(){
     sheet('<h3>Back at '+esc(p.name)+'</h3>'+visitFields()+'<button class="btn" id="sv">Save visit</button><button class="btn d" id="cancel">Cancel</button>');
@@ -326,20 +346,21 @@ function money(n){return 'Rp '+Number(n).toLocaleString('id-ID')}
 var fcats=[],foods=[],fFilter='All';
 var FEMO={'Indonesian':'🍛','Japanese':'🍣','Korean':'🍲','Chinese':'🥟','Taiwanese':'🧋','Western':'🍔','Dessert':'🍰','Coffee':'☕','Drinks':'🥤','Street Food':'🍢','Homemade':'🍳','Other':'🍽️'};
 async function loadFood(){
-  var r=await sb.from('food_entries').select('id,name,restaurant_name,tried_on,city,price,rating,taste,texture,notes,would_try_again,category_id,categories(name),places(name)').order('tried_on',{ascending:false});
+  var r=await sb.from('food_entries').select('id,name,restaurant_name,tried_on,city,price,rating,taste,texture,notes,would_try_again,category_id,categories(name),places(name,city)').order('tried_on',{ascending:false});
   if(r.error){toast('Couldn’t load foods: '+r.error.message);return}
   foods=r.data||[];renderFood();
 }
 function renderFood(){
   $('#fchips').innerHTML=['All'].concat(fcats.map(function(c){return c.name})).map(function(n){return '<button class="chip'+(n==fFilter?' on':'')+'" data-fc="'+esc(n)+'">'+esc(n)+'</button>'}).join('');
-  var l=foods.filter(function(f){return fFilter=='All'||(f.categories||{}).name==fFilter});
-  $('#fgrid').innerHTML=l.length?l.map(function(f,i){var c=(f.categories||{}).name;
+  var l=foods.filter(function(f){return (fFilter=='All'||(f.categories||{}).name==fFilter)&&fmatch(f)});
+  $('#fview').innerHTML=viewChips(fView,'fv');
+  $('#fgrid').innerHTML=fView!='list'&&l.length?foodAlt(l):l.length?l.map(function(f,i){var c=(f.categories||{}).name;
     return '<button class="fcard" data-fid="'+f.id+'"><div class="ph" style="background:'+COL[i%5]+'">'+(FEMO[c]||'🍽️')+'</div><div class="t">'+(f.price?'<span class="price">'+money(f.price)+'</span>':'')+'<b>'+esc(f.name)+'</b><small>'+esc(f.restaurant_name||(f.places||{}).name||'')+'</small><div class="stars">'+stars(f.rating)+'</div></div></button>'
-  }).join(''):'<div class="empty" style="grid-column:1/-1"><div>🍰</div>No tastes here yet. Tap + to add one.</div>';
+  }).join(''):'<div class="empty" style="grid-column:1/-1"><div>🍰</div>'+(fQ?'Nothing matches “'+esc(fQ)+'”.':'No tastes here yet. Tap + to add one.')+'</div>';
 }
 $('#fchips').onclick=function(e){var c=e.target.closest('[data-fc]');if(c){fFilter=c.dataset.fc;renderFood()}};
 $('#fgrid').onclick=function(e){var c=e.target.closest('[data-fid]');if(c)foodDetail(c.dataset.fid)};
-async function foodForm(){
+async function foodForm(pre){
   var pr=await sb.from('places').select('id,name').order('name');
   sheet('<h3>A little taste worth remembering.</h3>'+
   '<label for="g_name">Food or drink</label><input id="g_name" placeholder="e.g. Tonkotsu ramen" autocomplete="off">'+
@@ -353,11 +374,14 @@ async function foodForm(){
   '<label for="g_notes">Notes (optional)</label><textarea id="g_notes"></textarea>'+
   '<label class="chk"><input id="g_again" type="checkbox"> I’d order this again</label>'+
   '<button class="btn" id="save">Save taste</button><button class="btn d" id="cancel">Cancel</button>');
+  if(pre){$('#g_pl').value=pre.place_id;$('#g_rest').value=pre.rest||'';$('#g_date').value=pre.date||today();$('#g_city').value=pre.city||''}
   $('#cancel').onclick=closeSheet;
   $('#save').onclick=async function(){
     var name=$('#g_name').value.trim();if(!name){toast('What did you eat or drink?');return}
     this.disabled=true;
-    var r=await sb.from('food_entries').insert({name:name,category_id:$('#g_cat').value||null,restaurant_name:$('#g_rest').value.trim()||null,place_id:$('#g_pl').value||null,tried_on:$('#g_date').value||today(),city:$('#g_city').value.trim()||null,price:$('#g_price').value===''?null:Number($('#g_price').value),rating:Number($('#g_rate').value)||null,taste:$('#g_taste').value.trim()||null,texture:$('#g_tex').value.trim()||null,notes:$('#g_notes').value.trim()||null,would_try_again:$('#g_again').checked});
+    var pid=$('#g_pl').value||null,rn=$('#g_rest').value.trim().toLowerCase();
+    if(!pid&&rn){var mp=(pr.data||[]).find(function(x){return x.name.trim().toLowerCase()==rn});if(mp)pid=mp.id}
+    var r=await sb.from('food_entries').insert({name:name,category_id:$('#g_cat').value||null,restaurant_name:$('#g_rest').value.trim()||null,place_id:pid,tried_on:$('#g_date').value||today(),city:$('#g_city').value.trim()||null,price:$('#g_price').value===''?null:Number($('#g_price').value),rating:Number($('#g_rate').value)||null,taste:$('#g_taste').value.trim()||null,texture:$('#g_tex').value.trim()||null,notes:$('#g_notes').value.trim()||null,would_try_again:$('#g_again').checked});
     if(r.error){toast('Couldn’t save: '+r.error.message);this.disabled=false;return}
     toast('Saved. A little taste, remembered.');closeSheet();go('food');
   };
@@ -368,9 +392,11 @@ function foodDetail(id){
   sheet('<h3>'+esc(f.name)+'</h3><div class="stars">'+stars(f.rating)+'</div>'+
   rows.map(function(r){return '<div class="visit"><b>'+r[0]+'</b> · '+esc(r[1])+'</div>'}).join('')+
   (f.notes?'<div class="visit">'+esc(f.notes)+'</div>':'')+
+  '<div class="strip" data-strip="food_entry_id:'+f.id+'"></div>'+
   '<button class="btn s" id="editf">Edit entry</button><button class="btn s" id="addc">Add to collection</button><button class="btn s" id="close">Close</button><button class="btn d" id="del">Delete this entry</button>');
   $('#editf').onclick=function(){editSheet('Edit entry','food_entries',f,[{k:'name',l:'Food or drink',req:1},{k:'category_id',l:'Category',t:'select',o:catOpts(fcats)},{k:'restaurant_name',l:'Restaurant or place'},{k:'tried_on',l:'Date',t:'date'},{k:'city',l:'City'},{k:'price',l:'Price',t:'number'},{k:'rating',l:'Rating',t:'select',n:1,o:RATE},{k:'taste',l:'Taste'},{k:'texture',l:'Texture'},{k:'notes',l:'Notes',t:'textarea'}],loadFood)};
   $('#addc').onclick=function(){addToColl('food',f.id)};
+  initStrips([{col:'food_entry_id',id:f.id,kind:'food',year:(f.tried_on||today()).slice(0,4)}]);
   $('#close').onclick=closeSheet;
   $('#del').onclick=async function(){
     if(!confirm('Delete “'+f.name+'”? This can’t be undone.'))return;
@@ -431,12 +457,14 @@ function wishDetail(id){
   (w.budget?'<div class="visit"><b>Budget</b> · '+money(w.budget)+'</div>':'')+
   (w.target_date?'<div class="visit"><b>Target</b> · '+fdate(w.target_date)+'</div>':'')+
   (w.maps_url?'<p style="margin-top:10px"><a href="'+esc(w.maps_url)+'" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Open in Google Maps</a></p>':'')+
+  '<div class="strip" data-strip="wishlist_id:'+w.id+'"></div>'+
   '<button class="btn" id="planw">Plan a visit (Google Calendar)</button>'+
   (w.status!='visited'?'<button class="btn s" id="vis">We went! Mark as visited</button>':'')+
   '<button class="btn s" id="editw">Edit wishlist item</button><button class="btn s" id="close">Close</button><button class="btn d" id="del">Delete from wishlist</button>');
   $('#editw').onclick=function(){editSheet('Edit wishlist item','wishlists',w,[{k:'name',l:'Place or activity',req:1},{k:'category_id',l:'Category',t:'select',o:catOpts(cats)},{k:'city',l:'City'},{k:'country',l:'Country'},{k:'maps_url',l:'Google Maps link',t:'url'},{k:'reason',l:'Why do you want to go?',t:'textarea'},{k:'priority',l:'Priority',t:'select',o:[['high','High'],['medium','Medium'],['low','Low']]},{k:'status',l:'Status',t:'select',o:[['wishlist','Wishlist'],['planned','Planned'],['visited','Visited']]},{k:'budget',l:'Budget',t:'number'},{k:'target_date',l:'Target date',t:'date'}],loadWish)};
   $('#close').onclick=closeSheet;
   $('#planw').onclick=function(){calPlace(w,true)};
+  initStrips([{col:'wishlist_id',id:w.id,kind:'wishlist',year:today().slice(0,4)}]);
   if($('#vis'))$('#vis').onclick=async function(){
     this.disabled=true;
     var pr=await sb.from('places').insert({name:w.name,category_id:w.category_id,city:w.city,country:w.country,address:w.address,maps_url:w.maps_url,lat:w.lat,lng:w.lng}).select('id').single();
@@ -650,6 +678,278 @@ function calPlace(p,isWish){
     });
   };
 }
+
+// ----- TAMPILAN: LIST / BY CITY / TIMELINE -----
+var pView='list',fView='list';
+function viewChips(cur,attr){
+  return [['list','List'],['city','By city'],['time','Timeline']].map(function(x){return '<button class="chip'+(cur==x[0]?' on':'')+'" data-'+attr+'="'+x[0]+'">'+x[1]+'</button>'}).join('');
+}
+// Kelompokkan per kota (tanpa membedakan huruf besar/kecil). Kota terbanyak di atas, "No city yet" di bawah.
+function groupBy(arr,keyf){
+  var m={},order=[];
+  arr.forEach(function(x){var k=(keyf(x)||'').trim(),kk=k.toLowerCase();if(!m[kk]){m[kk]={label:k||'No city yet',key:kk,items:[]};order.push(kk)}m[kk].items.push(x)});
+  return order.map(function(k){return m[k]}).sort(function(a,b){
+    if(!a.key)return 1;if(!b.key)return -1;
+    return b.items.length-a.items.length||a.label.localeCompare(b.label)});
+}
+function monthLabel(d){return d?new Date(d+'T00:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'}):'No date'}
+function dayBox(d){
+  if(!d)return '<div class="day">–</div>';
+  var x=new Date(d+'T00:00:00');
+  return '<div class="day">'+x.getDate()+'<small>'+x.toLocaleDateString('en-GB',{month:'short'})+'</small></div>';
+}
+// items: [{d:'YYYY-MM-DD', html:'...'}], urut dari yang terbaru, dengan judul per bulan
+function timeline(items){
+  var out='',last=null;
+  items.sort(function(a,b){var x=a.d||'',y=b.d||'';return x<y?1:x>y?-1:0}).forEach(function(x){
+    var m=monthLabel(x.d);if(m!==last){out+='<div class="gh">'+m+'</div>';last=m}out+=x.html});
+  return out;
+}
+function placeCard(p,i){
+  var l=latest(p),c=(p.categories||{}).name,n=(p.place_visits||[]).length;
+  return '<button class="card" data-pid="'+p.id+'"><div class="ph" style="background:'+COL[i%5]+'">'+(EMO[c]||'📍')+'</div><div><b>'+esc(p.name)+'</b><small>'+esc(p.city||'')+(l?' · '+fdate(l.visited_on):'')+(n>1?' · '+n+' visits':'')+'</small><div class="stars">'+stars(l&&l.rating)+'</div>'+(c?'<span class="tag">'+esc(c)+'</span>':'')+'</div></button>';
+}
+function renderPlaces(){
+  $('#pview').innerHTML=viewChips(pView,'pv');
+  var h=window._pl;
+  if(places.length&&pView=='city'){
+    h=groupBy(places,function(p){return p.city}).map(function(g){
+      return '<div class="gh">📍 '+esc(g.label)+'<small>'+g.items.length+' place'+(g.items.length==1?'':'s')+'</small></div>'+g.items.map(placeCard).join('')}).join('');
+  }else if(places.length&&pView=='time'){
+    var it=[];
+    places.forEach(function(p){(p.place_visits||[]).forEach(function(v){
+      it.push({d:v.visited_on,html:'<button class="tl" data-pid="'+p.id+'">'+dayBox(v.visited_on)+'<div><b>'+esc(p.name)+'</b><small>'+esc(p.city||'')+'</small><div class="stars">'+stars(v.rating)+'</div>'+(v.story?'<small style="display:block;margin-top:3px">'+esc(v.story.slice(0,90))+(v.story.length>90?'…':'')+'</small>':'')+'</div></button>'})})});
+    h=timeline(it);
+  }
+  $('#plist').innerHTML=h;
+}
+function foodCard(f,i){
+  var c=(f.categories||{}).name;
+  return '<button class="fcard" data-fid="'+f.id+'"><div class="ph" style="background:'+COL[i%5]+'">'+(FEMO[c]||'🍽️')+'</div><div class="t">'+(f.price?'<span class="price">'+money(f.price)+'</span>':'')+'<b>'+esc(f.name)+'</b><small>'+esc(f.restaurant_name||(f.places||{}).name||'')+'</small><div class="stars">'+stars(f.rating)+'</div></div></button>';
+}
+function foodAlt(l){
+  if(fView=='city'){
+    return groupBy(l,function(f){return f.city||(f.places||{}).city}).map(function(g){
+      return '<div class="gh">🍽️ '+esc(g.label)+'<small>'+g.items.length+' item'+(g.items.length==1?'':'s')+'</small></div>'+g.items.map(foodCard).join('')}).join('');
+  }
+  return timeline(l.map(function(f){
+    var c=(f.categories||{}).name,where=f.restaurant_name||(f.places||{}).name||'',city=f.city||(f.places||{}).city||'';
+    return {d:f.tried_on,html:'<button class="tl" data-fid="'+f.id+'">'+dayBox(f.tried_on)+'<div><b>'+(FEMO[c]||'🍽️')+' '+esc(f.name)+'</b><small>'+esc([where,city].filter(Boolean).join(' · '))+(f.price?' · '+money(f.price):'')+'</small><div class="stars">'+stars(f.rating)+'</div></div></button>'};
+  }));
+}
+$('#pview').onclick=function(e){var c=e.target.closest('[data-pv]');if(c){pView=c.dataset.pv;renderPlaces()}};
+$('#fview').onclick=function(e){var c=e.target.closest('[data-fv]');if(c){fView=c.dataset.fv;renderFood()}};
+
+// ----- PENCARIAN MAKANAN -----
+var fQ='';
+function fmatch(f){
+  if(!fQ)return true;
+  var s=[f.name,f.restaurant_name,(f.places||{}).name,f.city,(f.places||{}).city,f.taste,f.texture,f.notes,(f.categories||{}).name].join(' ').toLowerCase();
+  return fQ.split(/\s+/).every(function(w){return s.indexOf(w)>-1});
+}
+$('#fsearch').oninput=function(){fQ=this.value.trim().toLowerCase();renderFood()};
+
+// ----- MAKANAN DI RIWAYAT KUNJUNGAN -----
+// Makanan dengan tanggal yang sama dengan sebuah kunjungan tampil di kunjungan itu.
+// Makanan di tanggal lain tampil di "Eaten here on other dates".
+async function loadAte(p){
+  var pat=p.name.replace(/[\\%_]/g,'\\$&'),cols='id,name,tried_on,rating,price';
+  var q=await Promise.all([sb.from('food_entries').select(cols).eq('place_id',p.id),sb.from('food_entries').select(cols).ilike('restaurant_name',pat)]);
+  var seen={},fl=[],other=[];
+  q.forEach(function(r){(r.data||[]).forEach(function(f){if(!seen[f.id]){seen[f.id]=1;fl.push(f)}})});
+  function line(f){return '🍽️ <b>'+esc(f.name)+'</b> <span class="stars">'+stars(f.rating)+'</span>'+(f.price?' · '+money(f.price):'')}
+  fl.forEach(function(f){
+    var slot=f.tried_on?document.querySelector('.ate[data-d="'+f.tried_on+'"]'):null;
+    if(slot)slot.innerHTML+='<div style="margin-top:6px">'+line(f)+'</div>';else other.push(f);
+  });
+  var o=$('#ate-other');
+  if(o&&other.length)o.innerHTML='<div style="margin-top:12px;font-weight:800">Eaten here on other dates</div>'+other.map(function(f){return '<div class="visit">'+(f.tried_on?fdate(f.tried_on):'No date')+' · '+line(f)+'</div>'}).join('');
+}
+
+// ----- FOTO (GOOGLE DRIVE) -----
+// Foto asli + versi ringan (WebP, maks 1600 px) dikirim langsung dari browser ke Drive-mu.
+// Server (/api) hanya menyiapkan "pintu upload" dan menampilkan versi ringan; foto asli tidak lewat server.
+var PH='id,upload_status,original_drive_file_id,optimized_drive_file_id,original_filename,client_upload_id';
+var A={},OWN={},pending={},prog={},urlCache={},activeUp=0;
+
+function uuid(){
+  if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c=='x'?r:(r&3|8)).toString(16)});
+}
+async function authToken(){var r=await sb.auth.getSession();return r.data.session&&r.data.session.access_token}
+async function apiPost(path,body){
+  var t=await authToken();
+  var r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify(body)});
+  var d={};try{d=await r.json()}catch(e){}
+  if(!r.ok)throw new Error(d.error||('Server error '+r.status));
+  return d;
+}
+async function thumbUrl(fileId){
+  if(urlCache[fileId])return urlCache[fileId];
+  var t=await authToken();
+  var r=await fetch('/api/photo?id='+encodeURIComponent(fileId),{headers:{Authorization:'Bearer '+t}});
+  if(!r.ok)throw new Error('no photo');
+  var u=URL.createObjectURL(await r.blob());urlCache[fileId]=u;return u;
+}
+// Kecilkan foto: sisi terpanjang maks 1600 px, WebP kualitas 80% (JPEG kalau browser tidak bisa WebP)
+function compress(file){
+  return new Promise(function(res,rej){
+    function draw(src,w,h,cleanup){
+      var s=Math.min(1,1600/Math.max(w,h)),c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));
+      c.getContext('2d').drawImage(src,0,0,c.width,c.height);
+      if(cleanup)cleanup();
+      c.toBlob(function(b){
+        if(b&&b.type=='image/webp')return res(b);
+        c.toBlob(function(j){j?res(j):rej(new Error('encode'))},'image/jpeg',0.8);
+      },'image/webp',0.8);
+    }
+    function viaImage(){
+      var u=URL.createObjectURL(file),i=new Image();
+      i.onload=function(){draw(i,i.naturalWidth,i.naturalHeight,function(){URL.revokeObjectURL(u)})};
+      i.onerror=function(){URL.revokeObjectURL(u);rej(new Error('decode'))};
+      i.src=u;
+    }
+    if(window.createImageBitmap){
+      createImageBitmap(file,{imageOrientation:'from-image'}).then(function(b){draw(b,b.width,b.height,function(){if(b.close)b.close()})}).catch(viaImage);
+    }else viaImage();
+  });
+}
+function putFile(url,blob,onp){
+  return new Promise(function(res,rej){
+    var x=new XMLHttpRequest();x.open('PUT',url);
+    x.upload.onprogress=function(e){if(e.lengthComputable)onp(e.loaded)};
+    x.onload=function(){
+      if(x.status>=200&&x.status<300){try{res(JSON.parse(x.responseText).id)}catch(e){rej(new Error('Unexpected reply from Google Drive'))}}
+      else rej(new Error('Google Drive upload failed ('+x.status+')'));
+    };
+    x.onerror=function(){rej(new Error('Network error while uploading'))};
+    x.send(blob);
+  });
+}
+async function sendVariant(variant,own,uid,blob,name,mime,onp){
+  var d=await apiPost('/api/drive-init',{variant:variant,kind:own.kind,year:own.year,clientUploadId:uid,filename:name,mimeType:mime,size:blob.size});
+  if(d.done)return d.fileId;           // sudah ada di Drive: tidak dibuat dobel
+  return putFile(d.uploadUrl,blob,onp);
+}
+
+function getAsset(key,id){return (A[key]||[]).find(function(x){return x.id==id})}
+function patchAsset(key,id,p){var a=getAsset(key,id);if(a)Object.keys(p).forEach(function(k){a[k]=p[k]})}
+function shownStatus(a){var s=a.upload_status;return ((s=='uploading'||s=='pending')&&!pending[a.id])?'failed':s}
+function tileLabel(a){
+  var s=shownStatus(a);
+  if(s=='uploading')return prog[a.id]!=null?Math.round(prog[a.id]*100)+'%':'Uploading';
+  return s=='pending'?'Pending':'Failed<br>Tap';
+}
+function drawStrip(key){
+  var h=(A[key]||[]).map(function(a){
+    var s=shownStatus(a),at='data-asset="'+a.id+'" data-key="'+key+'"';
+    if(s=='synced'&&a.optimized_drive_file_id)return '<button class="pt" '+at+' aria-label="Open photo"><img data-fid="'+a.optimized_drive_file_id+'" alt="Photo"></button>';
+    if(s=='synced')return '<button class="pt" '+at+'>📷<br>Original</button>';
+    return '<button class="pt'+(s=='failed'?' bad':'')+'" '+at+'>'+tileLabel(a)+'</button>';
+  }).join('')+'<label class="pt add" aria-label="Add photos">📷<input type="file" accept="image/*,.heic,.heif" multiple style="display:none" data-pick="'+key+'"></label>';
+  document.querySelectorAll('[data-strip="'+key+'"]').forEach(function(el){
+    el.innerHTML=h;
+    el.querySelectorAll('img[data-fid]').forEach(function(im){
+      thumbUrl(im.dataset.fid).then(function(u){im.src=u}).catch(function(){im.parentNode.textContent='📷'});
+    });
+  });
+}
+function setProg(id,f){
+  prog[id]=f;
+  document.querySelectorAll('.pt[data-asset="'+id+'"]').forEach(function(b){b.textContent=Math.round(f*100)+'%'});
+}
+async function initStrips(items){
+  var byCol={};
+  items.forEach(function(it){var k=it.col+':'+it.id;OWN[k]=it;drawStrip(k);(byCol[it.col]=byCol[it.col]||[]).push(it.id)});
+  for(var col in byCol){
+    var r=await sb.from('photo_assets').select(PH+','+col).in(col,byCol[col]).order('created_at');
+    if(r.error){toast('Couldn’t load photos: '+r.error.message);continue}
+    byCol[col].forEach(function(id){
+      var k=col+':'+id,db=(r.data||[]).filter(function(x){return x[col]==id}),old=A[k]||[];
+      var keep=old.filter(function(x){return pending[x.id]&&!db.some(function(d){return d.id==x.id})});
+      A[k]=db.map(function(d){var l=old.find(function(x){return x.id==d.id});return (l&&pending[d.id])?l:d}).concat(keep);
+      drawStrip(k);
+    });
+  }
+}
+async function addPhotos(files,key){
+  var own=OWN[key];if(!own)return;
+  if(files.length>10){toast('Adding the first 10 photos. Add the rest afterwards.');files=files.slice(0,10)}
+  var added=[];
+  for(var i=0;i<files.length;i++){
+    var f=files[i],row={client_upload_id:uuid(),original_filename:f.name,original_size:f.size,mime_type:f.type||null,upload_status:'pending'};
+    row[own.col]=own.id;
+    var r=await sb.from('photo_assets').insert(row).select(PH).single();
+    if(r.error){toast('Couldn’t start the upload: '+r.error.message);continue}
+    pending[r.data.id]={file:f,opt:null,optFail:false};
+    (A[key]=A[key]||[]).push(r.data);added.push(r.data);
+  }
+  drawStrip(key);
+  for(var j=0;j<added.length;j++)await runUpload(key,added[j].id);
+}
+async function runUpload(key,id){
+  var a=getAsset(key,id),p=pending[id],own=OWN[key];
+  if(!a||!p||!own)return;
+  activeUp++;
+  patchAsset(key,id,{upload_status:'uploading'});prog[id]=0;drawStrip(key);
+  try{
+    await sb.from('photo_assets').update({upload_status:'uploading'}).eq('id',id);
+    if(!p.opt&&!p.optFail){try{p.opt=await compress(p.file)}catch(e){p.optFail=true}}
+    var total=p.file.size+(p.opt?p.opt.size:0),base=0,optId=null,oneName=(p.file.name||'photo').replace(/\.[^.]+$/,'');
+    if(p.opt){
+      var ext=p.opt.type=='image/webp'?'.webp':'.jpg';
+      optId=await sendVariant('optimized',own,a.client_upload_id,p.opt,oneName+ext,p.opt.type,function(l){setProg(id,(base+l)/total)});
+      base=p.opt.size;
+    }
+    var origId=await sendVariant('original',own,a.client_upload_id,p.file,p.file.name||'photo',p.file.type||'application/octet-stream',function(l){setProg(id,(base+l)/total)});
+    var patch={original_drive_file_id:origId,optimized_drive_file_id:optId,optimized_size:p.opt?p.opt.size:null,upload_status:'synced'};
+    var u=await sb.from('photo_assets').update(patch).eq('id',id);
+    if(u.error)throw new Error('Uploaded, but couldn’t save: '+u.error.message);
+    patchAsset(key,id,patch);delete pending[id];delete prog[id];
+    if(p.optFail)toast('Saved the original. This browser can’t make a preview for that photo type.');
+  }catch(e){
+    patchAsset(key,id,{upload_status:'failed'});
+    sb.from('photo_assets').update({upload_status:'failed'}).eq('id',id).then(function(){});
+    toast('Photo upload failed: '+(e.message||e));
+  }
+  activeUp--;drawStrip(key);
+}
+function openViewer(key,id){
+  var a=getAsset(key,id);if(!a)return;
+  var s=shownStatus(a),can=!!pending[id],o=document.createElement('div');o.className='vw';
+  var msg=s=='synced'?'No preview for this file type. The original is saved in your Google Drive.':
+    s=='failed'?(can?'This upload didn’t finish. Try again.':'This upload didn’t finish and the photo isn’t kept in this browser. Remove it, then add the photo again.'):
+    'Uploading…';
+  o.innerHTML=(s=='synced'&&a.optimized_drive_file_id?'<img alt="Photo">':'<div style="color:#fff;text-align:center;max-width:320px">'+msg+'</div>')+
+  '<div class="vwb">'+(s=='failed'&&can?'<button class="chip" id="vw_retry">Retry upload</button>':'')+
+  (a.original_drive_file_id?'<a class="chip" target="_blank" rel="noopener" href="https://drive.google.com/file/d/'+encodeURIComponent(a.original_drive_file_id)+'/view">Open original in Drive</a>':'')+
+  (s=='uploading'||s=='pending'?'':'<button class="chip" id="vw_rm">Remove from journal</button>')+
+  '<button class="chip" id="vw_x">Close</button></div>';
+  document.body.appendChild(o);
+  var im=o.querySelector('img');
+  if(im)thumbUrl(a.optimized_drive_file_id).then(function(u){im.src=u}).catch(function(){});
+  o.onclick=function(e){if(e.target===o)o.remove()};
+  o.querySelector('#vw_x').onclick=function(){o.remove()};
+  var rt=o.querySelector('#vw_retry');if(rt)rt.onclick=function(){o.remove();runUpload(key,id)};
+  var rm=o.querySelector('#vw_rm');
+  if(rm)rm.onclick=async function(){
+    if(!confirm('Remove this photo from your journal? The file stays in your Google Drive.'))return;
+    var r=await sb.from('photo_assets').delete().eq('id',id);
+    if(r.error){toast('Couldn’t remove: '+r.error.message);return}
+    A[key]=(A[key]||[]).filter(function(x){return x.id!=id});delete pending[id];
+    o.remove();drawStrip(key);toast('Removed from your journal.');
+  };
+}
+document.addEventListener('change',function(e){
+  var i=e.target.closest?e.target.closest('[data-pick]'):null;
+  if(i&&i.files&&i.files.length){var fs=[].slice.call(i.files),k=i.dataset.pick;i.value='';addPhotos(fs,k)}
+});
+document.addEventListener('click',function(e){
+  var t=e.target.closest?e.target.closest('.pt[data-asset]'):null;
+  if(t)openViewer(t.dataset.key,t.dataset.asset);
+});
+window.addEventListener('beforeunload',function(e){if(activeUp>0){e.preventDefault();e.returnValue=''}});
 
 // ----- MULAI -----
 sb.auth.getSession().then(function(r){r.data.session?showApp():showLogin()});
